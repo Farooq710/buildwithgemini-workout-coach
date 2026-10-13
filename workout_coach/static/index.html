@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ronny — Your Personal Fitness Coach</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="app-wrapper">
+    <!-- APP HEADER -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-logo">
+          <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 5v14M18 5v14M2 9v6M22 9v6M6 12h12" />
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">
+            <span class="gradient-text">RONNY</span> COACH
+          </div>
+          <p class="brand-tagline">Your personal fitness coach</p>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <!-- USER / ATHLETE SELECTOR & CREATE BUTTON -->
+        <div class="athlete-selector-pill">
+          <div class="athlete-avatar" id="headerAvatar">A</div>
+          <div class="athlete-info">
+            <span class="athlete-label">Active Athlete</span>
+            <select id="userSelectDropdown" class="user-select-native" aria-label="Select Athlete">
+              <option value="athlete_alex">Alex Rivera</option>
+            </select>
+          </div>
+          <button type="button" class="btn btn-create-user" id="btnOpenCreateUserModal" title="Create New Athlete">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="icon-sm">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>New Athlete</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="system-status-badge" id="systemStatusBadge" title="Backend Persistence & Intelligence Status">
+          <span class="status-dot pulsating"></span>
+          <span id="adapterName">Cloud Firestore • Mock</span>
+        </div>
+        <button class="btn btn-icon-subtle drawer-toggle-btn" id="btnToggleCoachDrawer" aria-label="Toggle Coach Chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-md">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ATHLETE HERO OVERVIEW BANNER -->
+    <section class="athlete-hero-banner" id="athleteHeroBanner">
+      <div class="banner-athlete-meta">
+        <div class="athlete-badge-row">
+          <span class="pill pill-goal" id="heroGoalBadge">Strength & Power</span>
+          <span class="pill pill-level" id="heroLevelBadge">Intermediate</span>
+          <span class="pill pill-split" id="heroSplitBadge">3 Days / Week</span>
+          <span class="pill pill-guard" id="heroSafetyBadge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            <span id="heroSafetyText">Safety Guardrails Active</span>
+          </span>
+        </div>
+      </div>
+      <div class="banner-quick-actions">
+        <button class="btn btn-accent-glow btn-sm" id="btnHeroGeneratePlan">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          Regenerate Routine
+        </button>
+        <button class="btn btn-outline btn-sm" id="btnHeroQuickLog">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="12" y1="18" x2="12" y2="12"></line>
+            <line x1="9" y1="15" x2="15" y2="15"></line>
+          </svg>
+          Log Session
+        </button>
+      </div>
+    </section>
+
+    <!-- MAIN INTERACTIVE APP BODY -->
+    <main class="app-main">
+      <!-- MAIN TABS CONTAINER -->
+      <section class="main-content-panel">
+        <nav class="nav-segmented" role="tablist">
+          <button class="segment-btn active" data-tab="tab-plan" role="tab" aria-selected="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span>Active Routine</span>
+          </button>
+          <button class="segment-btn" data-tab="tab-log" role="tab" aria-selected="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+              <path d="M12 20h9"></path>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+            </svg>
+            <span>Workout Logger</span>
+          </button>
+          <button class="segment-btn" data-tab="tab-progress" role="tab" aria-selected="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            <span>Progress & 1RM</span>
+          </button>
+          <button class="segment-btn" data-tab="tab-profile" role="tab" aria-selected="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span>Profile & Safety</span>
+          </button>
+          <button class="segment-btn" data-tab="tab-maps" role="tab" aria-selected="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+            <span>Gyms & Maps</span>
+          </button>
+        </nav>
+
+        <!-- TAB 1: WORKOUT PLAN -->
+        <div class="tab-pane active" id="tab-plan">
+          <div class="pane-header">
+            <div>
+              <h2 id="planTitle" class="pane-title">Active Training Plan</h2>
+              <p class="pane-subtitle" id="planMeta">Grounded program calibrated for your equipment and injury limitations.</p>
+            </div>
+            <button class="btn btn-primary" id="btnGeneratePlan">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+              Generate Custom Plan
+            </button>
+          </div>
+
+          <div id="planRationaleBox" class="callout callout-info" style="display: none;">
+            <div class="callout-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+            </div>
+            <div class="callout-body" id="planRationaleText"></div>
+          </div>
+
+          <div class="plan-days-container" id="planSessionsContainer">
+            <div class="empty-state-card">
+              <div class="empty-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="icon-xl">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+              </div>
+              <h3>No Active Routine Loaded</h3>
+              <p>Click "Generate Custom Plan" or use the coach drawer to craft a safe routine tailored to your goals.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: LOG WORKOUT -->
+        <div class="tab-pane" id="tab-log">
+          <div class="pane-header">
+            <div>
+              <h2 class="pane-title">Record Completed Session</h2>
+              <p class="pane-subtitle">Log verified sets, reps, and weights into Cloud Firestore.</p>
+            </div>
+          </div>
+
+          <form id="logWorkoutForm" class="modern-card form-flow">
+            <div class="form-grid-3">
+              <div class="field-group">
+                <label for="logDate">Workout Date</label>
+                <input type="date" id="logDate" class="input-control" required>
+              </div>
+              <div class="field-group">
+                <label for="logDuration">Duration (Minutes)</label>
+                <input type="number" id="logDuration" class="input-control" value="45" min="5" max="240" required>
+              </div>
+              <div class="field-group">
+                <label for="logRpe">Perceived Effort (RPE 1-10)</label>
+                <div class="rpe-slider-wrapper">
+                  <input type="range" id="logRpe" class="range-control" value="7" min="1" max="10">
+                  <span class="rpe-badge" id="rpeDisplayVal">RPE 7 • Hard</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="logged-exercises-section">
+              <div class="section-title-bar">
+                <h3>Exercises & Performed Sets</h3>
+                <button type="button" class="btn btn-outline btn-sm" id="btnAddExerciseToLog">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  Add Exercise
+                </button>
+              </div>
+              <div id="loggedExercisesList" class="exercises-log-grid"></div>
+            </div>
+
+            <div class="field-group">
+              <label for="logFeedback">Session Notes & Biomechanical Feedback</label>
+              <textarea id="logFeedback" class="textarea-control" rows="2" placeholder="e.g. Chest felt pumped and strong, lower back had zero discomfort throughout..."></textarea>
+            </div>
+
+            <div class="form-actions-bar">
+              <button type="submit" class="btn btn-primary" id="btnSubmitLog">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                  <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                  <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+                Save Workout Session
+              </button>
+              <span id="logStatusMsg" class="inline-status-msg"></span>
+            </div>
+          </form>
+        </div>
+
+        <!-- TAB 3: PROGRESS & 1RM TELEMETRY -->
+        <div class="tab-pane" id="tab-progress">
+          <div class="pane-header">
+            <div>
+              <h2 class="pane-title">Fitness Telemetry & Overload</h2>
+              <p class="pane-subtitle">Deterministic volume arithmetic and Epley 1RM progression formulas.</p>
+            </div>
+            <button class="btn btn-outline btn-sm" id="btnRefreshProgress">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs">
+                <path d="M23 4v6h-6"></path>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+              Sync Telemetry
+            </button>
+          </div>
+
+          <!-- KPI STATS CARDS -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-icon-wrap icon-cyan">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-md">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+              </div>
+              <div>
+                <div class="kpi-label">Completed Sessions</div>
+                <div class="kpi-value" id="statSessions">0</div>
+                <div class="kpi-subtext">Lifetime recorded workouts</div>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-icon-wrap icon-green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-md">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <div>
+                <div class="kpi-label">14-Day Adherence</div>
+                <div class="kpi-value" id="statAdherence">0%</div>
+                <div class="kpi-subtext">Scheduled vs completed sessions</div>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-icon-wrap icon-orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-md">
+                  <path d="M6 5v14M18 5v14M2 9v6M22 9v6M6 12h12" />
+                </svg>
+              </div>
+              <div>
+                <div class="kpi-label">Volume Tonnage</div>
+                <div class="kpi-value" id="statVolume">0 kg</div>
+                <div class="kpi-subtext">Accumulated workload (\(\sum w \times r\))</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- COACH OVERLOAD RECOMMENDATION BOX -->
+          <div class="overload-recommendation-card">
+            <div class="overload-header">
+              <div class="overload-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm color-accent">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+                Coach Progressive Overload Guidance
+              </div>
+            </div>
+            <div id="adjustmentsList" class="overload-body">
+              <p class="empty-hint">Complete and log your first workout session to unlock deterministic progression calculations.</p>
+            </div>
+          </div>
+
+          <!-- 1RM TABLE -->
+          <div class="data-table-card">
+            <h3 class="table-card-title">Estimated 1-Rep Max (Epley Formula) & Volume Progression</h3>
+            <div class="table-responsive">
+              <table class="modern-table" id="exerciseTrendsTable">
+                <thead>
+                  <tr>
+                    <th>Exercise Movement</th>
+                    <th>Sessions</th>
+                    <th>Max Working Weight</th>
+                    <th>Estimated 1RM</th>
+                    <th>Volume Load</th>
+                    <th>Trajectory</th>
+                  </tr>
+                </thead>
+                <tbody id="exerciseTrendsBody">
+                  <tr><td colspan="6" class="text-muted text-center py-4">No completed exercise logs recorded yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 4: PROFILE & SAFETY -->
+        <div class="tab-pane" id="tab-profile">
+          <div class="pane-header">
+            <div>
+              <h2 class="pane-title">Athlete Profile & Injury Boundaries</h2>
+              <p class="pane-subtitle">Manage training parameters and hardcoded biomechanical contraindications.</p>
+            </div>
+          </div>
+
+          <form id="profileForm" class="modern-card form-flow">
+            <div class="form-grid-3">
+              <div class="field-group">
+                <label for="profileGoal">Primary Fitness Goal</label>
+                <select id="profileGoal" class="select-control">
+                  <option value="strength">Strength & Power</option>
+                  <option value="muscle_gain">Hypertrophy (Muscle Gain)</option>
+                  <option value="general_fitness" selected>General Fitness</option>
+                  <option value="endurance">Endurance & Conditioning</option>
+                  <option value="weight_management">Weight Management</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label for="profileLevel">Experience Level</label>
+                <select id="profileLevel" class="select-control">
+                  <option value="beginner">Beginner (&lt; 1 year)</option>
+                  <option value="intermediate" selected>Intermediate (1-3 years)</option>
+                  <option value="advanced">Advanced (3+ years)</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label for="profileDays">Weekly Training Frequency</label>
+                <select id="profileDays" class="select-control">
+                  <option value="2">2 Days / Week</option>
+                  <option value="3" selected>3 Days / Week (Full Body)</option>
+                  <option value="4">4 Days / Week (Upper / Lower)</option>
+                  <option value="5">5 Days / Week</option>
+                  <option value="6">6 Days / Week (PPL Split)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- EQUIPMENT VISUAL TOGGLES -->
+            <div class="field-group">
+              <label>Available Equipment Setup</label>
+              <div class="chip-grid">
+                <label class="toggle-chip"><input type="checkbox" name="equipment" value="bodyweight" checked><span>Bodyweight</span></label>
+                <label class="toggle-chip"><input type="checkbox" name="equipment" value="dumbbells" checked><span>Dumbbells</span></label>
+                <label class="toggle-chip"><input type="checkbox" name="equipment" value="barbell" checked><span>Barbell & Rack</span></label>
+                <label class="toggle-chip"><input type="checkbox" name="equipment" value="bench" checked><span>Adjustable Bench</span></label>
+                <label class="toggle-chip"><input type="checkbox" name="equipment" value="pull_up_bar"><span>Pull-up Bar</span></label>
+                <label class="toggle-chip"><input type="checkbox" name="equipment" value="cable"><span>Cable Station</span></label>
+                <label class="toggle-chip"><input type="checkbox" name="equipment" value="kettlebell"><span>Kettlebell</span></label>
+              </div>
+            </div>
+
+            <!-- CONTRAINDICATIONS & SAFETY -->
+            <div class="field-group">
+              <div class="field-label-with-hint">
+                <label>Declared Injury Limitations / Contraindications</label>
+                <span class="hint-badge">Strict Biomechanical Exclusion</span>
+              </div>
+              <div class="safety-toggle-grid">
+                <label class="safety-card-toggle">
+                  <input type="checkbox" name="limitations" value="lower_back_pain">
+                  <div class="toggle-box">
+                    <strong>Lower Back Pain</strong>
+                    <p>Excludes heavy deadlifts, bent-over rows, and standing spinal axial loading.</p>
+                  </div>
+                </label>
+                <label class="safety-card-toggle">
+                  <input type="checkbox" name="limitations" value="knee_pain">
+                  <div class="toggle-box">
+                    <strong>Knee Sensitivity</strong>
+                    <p>Excludes high forward-shear lunges and deep high-stress leg presses.</p>
+                  </div>
+                </label>
+                <label class="safety-card-toggle">
+                  <input type="checkbox" name="limitations" value="shoulder_impingement">
+                  <div class="toggle-box">
+                    <strong>Shoulder Impingement</strong>
+                    <p>Excludes behind-neck presses and extreme internal rotation movements.</p>
+                  </div>
+                </label>
+                <label class="safety-card-toggle">
+                  <input type="checkbox" name="limitations" value="wrist_pain">
+                  <div class="toggle-box">
+                    <strong>Wrist Discomfort</strong>
+                    <p>Replaces fixed straight barbell pressing with neutral dumbbell grips.</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-actions-bar">
+              <button type="submit" class="btn btn-primary" id="btnSaveProfile">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                  <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                  <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+                Save & Update Profile
+              </button>
+              <span id="profileStatusMsg" class="inline-status-msg"></span>
+            </div>
+          </form>
+        </div>
+
+        <!-- TAB 5: GOOGLE MAPS & GYMS EXPLORER -->
+        <div class="tab-pane" id="tab-maps">
+          <div class="pane-header">
+            <div>
+              <h2 class="pane-title">📍 Nearby Gyms & Athletic Facilities</h2>
+              <p class="pane-subtitle">Scout strength facilities, tracks, and calisthenics parks powered by Google Maps Platform.</p>
+            </div>
+          </div>
+
+          <!-- MAPS SEARCH BAR -->
+          <div class="card" style="padding: 1.25rem; margin-bottom: 1.25rem;">
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end;">
+              <div style="flex: 2; min-width: 220px;" class="field-group">
+                <label for="mapsLocationInput">Location / City / Zip</label>
+                <input type="text" id="mapsLocationInput" class="input-control" placeholder="e.g. Austin, TX or Downtown Seattle" value="Downtown">
+              </div>
+              <div style="flex: 1; min-width: 180px;" class="field-group">
+                <label for="mapsFacilityType">Facility Category</label>
+                <select id="mapsFacilityType" class="input-control">
+                  <option value="gym">Gym & Fitness Center</option>
+                  <option value="running track">Running Track / Athletic Loop</option>
+                  <option value="calisthenics park">Calisthenics & Pull-Up Park</option>
+                  <option value="powerlifting">Powerlifting & Barbell Club</option>
+                </select>
+              </div>
+              <button type="button" class="btn btn-primary" id="btnScoutFacilities" style="height: 42px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <span>Scout on Maps</span>
+              </button>
+            </div>
+
+            <!-- Quick City Pills -->
+            <div class="location-chips-row">
+              <span style="font-size: 0.75rem; color: var(--text-muted); align-self: center;">Popular:</span>
+              <button type="button" class="location-chip" data-loc="Austin, TX">Austin, TX</button>
+              <button type="button" class="location-chip" data-loc="Seattle, WA">Seattle, WA</button>
+              <button type="button" class="location-chip" data-loc="New York, NY">New York, NY</button>
+              <button type="button" class="location-chip" data-loc="San Francisco, CA">San Francisco, CA</button>
+              <button type="button" class="location-chip" data-loc="Chicago, IL">Chicago, IL</button>
+            </div>
+          </div>
+
+          <!-- VENUES RESULTS GRID -->
+          <div id="mapsVenuesContainer" class="maps-venues-grid">
+            <div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 2rem;">
+              Click <strong>Scout on Maps</strong> or ask Ronny in chat to locate top-rated training spots.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN: COACH CONVERSATIONAL DRAWER -->
+      <aside class="chat-drawer" id="coachChatDrawer">
+        <div class="drawer-header">
+          <div class="coach-avatar-wrap" style="background: rgba(249, 115, 22, 0.15); color: var(--primary); font-weight: 800; font-family: var(--font-display); font-size: 1.1rem; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid rgba(249, 115, 22, 0.4);">
+            R
+          </div>
+          <div class="drawer-header-text">
+            <h3>Ronny</h3>
+            <span class="active-badge">Your personal fitness coach</span>
+          </div>
+        </div>
+
+        <div class="chat-messages-scroll" id="chatMessages">
+          <div class="chat-msg coach">
+            <div class="msg-bubble">
+              Hey athlete! I'm <strong>Ronny</strong>, your personal fitness coach. Whether you need a customized strength routine, injury-safe exercise alternatives, or want to scout top-rated gyms and running tracks near you with Google Maps, I've got your back. How can we crush your goals today?
+            </div>
+          </div>
+        </div>
+
+        <!-- QUICK CHIPS -->
+        <div class="action-chips-wrapper">
+          <button class="action-chip" data-prompt="Find gyms near Downtown">📍 Find Gyms</button>
+          <button class="action-chip" data-prompt="Find outdoor running tracks near me">🏃 Running Tracks</button>
+          <button class="action-chip" data-prompt="Generate my customized workout plan">⚡ Generate Plan</button>
+          <button class="action-chip" data-prompt="Search safe leg exercises avoiding lower back pain">🔍 Safe Legs</button>
+          <button class="action-chip" data-prompt="What is my progress and volume so far?">📊 Check Volume</button>
+          <button class="action-chip chip-danger" data-prompt="I felt a sudden sharp pain and popping sound in my shoulder">🚨 Test Red-Flag</button>
+        </div>
+
+        <form class="chat-input-row" id="chatForm">
+          <input type="text" id="chatInput" class="chat-input" placeholder="Ask Ronny anything (e.g. 'find gyms in Austin')..." autocomplete="off">
+          <button type="submit" class="btn btn-primary btn-send" aria-label="Send Message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="icon-sm">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </form>
+      </aside>
+    </main>
+
+    <!-- CREATE USER / ATHLETE MODAL -->
+    <div class="modal-overlay" id="createUserModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-content-card">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <div class="modal-icon-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-md">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="8.5" cy="7" r="4"></circle>
+                <line x1="20" y1="8" x2="20" y2="14"></line>
+                <line x1="23" y1="11" x2="17" y2="11"></line>
+              </svg>
+            </div>
+            <div>
+              <h2 id="modalTitle">Create New Athlete Profile</h2>
+              <p class="modal-subtitle">Set up goals, equipment, and medical boundaries in Cloud Firestore.</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close-modal" id="btnCloseCreateUserModal" aria-label="Close modal">✕</button>
+        </div>
+
+        <form id="createUserForm" class="modal-body-form">
+          <div class="field-group">
+            <label for="newUserId">Athlete ID / Username</label>
+            <input type="text" id="newUserId" class="input-control" placeholder="e.g. sarah_connor or david_fit" required>
+            <span class="field-hint">Unique identifier used for Cloud Firestore persistence.</span>
+          </div>
+
+          <div class="field-group">
+            <label>Primary Fitness Goal</label>
+            <div class="goal-selection-grid">
+              <label class="goal-card-radio">
+                <input type="radio" name="newGoal" value="strength" checked>
+                <div class="goal-card-box">
+                  <span class="goal-icon">⚡</span>
+                  <strong>Strength & Power</strong>
+                  <span>Heavy compound sets & neurological adaptation</span>
+                </div>
+              </label>
+              <label class="goal-card-radio">
+                <input type="radio" name="newGoal" value="muscle_gain">
+                <div class="goal-card-box">
+                  <span class="goal-icon">💪</span>
+                  <strong>Hypertrophy</strong>
+                  <span>Muscle growth, volume load, and metabolic stress</span>
+                </div>
+              </label>
+              <label class="goal-card-radio">
+                <input type="radio" name="newGoal" value="general_fitness">
+                <div class="goal-card-box">
+                  <span class="goal-icon">🎯</span>
+                  <strong>General Fitness</strong>
+                  <span>Balanced functional strength and overall health</span>
+                </div>
+              </label>
+              <label class="goal-card-radio">
+                <input type="radio" name="newGoal" value="endurance">
+                <div class="goal-card-box">
+                  <span class="goal-icon">🏃</span>
+                  <strong>Endurance</strong>
+                  <span>Cardio stamina, density, and sustained stamina</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="field-group">
+              <label for="newLevel">Experience Level</label>
+              <select id="newLevel" class="select-control">
+                <option value="beginner">Beginner (&lt; 1 year)</option>
+                <option value="intermediate" selected>Intermediate (1-3 years)</option>
+                <option value="advanced">Advanced (3+ years)</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label for="newDays">Weekly Frequency</label>
+              <select id="newDays" class="select-control">
+                <option value="2">2 Days / Week</option>
+                <option value="3" selected>3 Days / Week (Full Body)</option>
+                <option value="4">4 Days / Week (Upper / Lower)</option>
+                <option value="5">5 Days / Week</option>
+                <option value="6">6 Days / Week (Push/Pull/Legs)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label>Available Equipment</label>
+            <div class="chip-grid">
+              <label class="toggle-chip"><input type="checkbox" name="newEquipment" value="bodyweight" checked><span>Bodyweight</span></label>
+              <label class="toggle-chip"><input type="checkbox" name="newEquipment" value="dumbbells" checked><span>Dumbbells</span></label>
+              <label class="toggle-chip"><input type="checkbox" name="newEquipment" value="barbell" checked><span>Barbell & Rack</span></label>
+              <label class="toggle-chip"><input type="checkbox" name="newEquipment" value="bench" checked><span>Bench</span></label>
+              <label class="toggle-chip"><input type="checkbox" name="newEquipment" value="pull_up_bar"><span>Pull-up Bar</span></label>
+              <label class="toggle-chip"><input type="checkbox" name="newEquipment" value="cable"><span>Cables</span></label>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label>Injury Limitations (Optional)</label>
+            <div class="chip-grid">
+              <label class="toggle-chip chip-warning"><input type="checkbox" name="newLimitations" value="lower_back_pain"><span>Lower Back Pain</span></label>
+              <label class="toggle-chip chip-warning"><input type="checkbox" name="newLimitations" value="knee_pain"><span>Knee Sensitivity</span></label>
+              <label class="toggle-chip chip-warning"><input type="checkbox" name="newLimitations" value="shoulder_impingement"><span>Shoulder Impingement</span></label>
+              <label class="toggle-chip chip-warning"><input type="checkbox" name="newLimitations" value="wrist_pain"><span>Wrist Pain</span></label>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" id="btnCancelCreateUser">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btnConfirmCreateUser">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              Create Athlete & Generate Routine
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- TOAST NOTIFICATIONS CONTAINER -->
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
