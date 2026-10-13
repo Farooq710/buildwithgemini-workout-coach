@@ -175,6 +175,48 @@ Then follow the [lab guide](https://cszhu.github.io/build-with-gemini/) to desig
 
 ---
 
+## 🧪 Testing & Continuous Integration
+
+The application includes an automated test suite verifying agent safety boundaries, deterministic overload formulas, REST endpoints, and the frontend telemetry contract:
+
+```bash
+# Run the complete test suite (36 tests)
+pytest tests/ -v
+
+# Run the frontend telemetry contract tests
+pytest tests/test_contract.py -v
+```
+
+### GitHub Actions CI Configuration
+To run CI workflows on GitHub Actions across Python 3.11 and 3.12, create `.github/workflows/ci.yml`:
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+      - name: Run Tests
+        env:
+          STORAGE_BACKEND: sqlite
+          USE_VERTEX_GEMINI: "false"
+        run: pytest tests/ -v
+```
+
+---
+
 ## 📚 Resources
 
 - **[Lab guide](https://cszhu.github.io/build-with-gemini/)**: the step-by-step workshop

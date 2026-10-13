@@ -4,7 +4,8 @@ from __future__ import annotations
 from enum import Enum
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
-from pydantic import BaseModel, Field, ConfigDict
+import uuid
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 
 class FitnessGoal(str, Enum):
@@ -116,13 +117,27 @@ class WorkoutPlan(BaseModel):
 
 
 class CompletedSet(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     set_number: int
     weight_kg: float = Field(default=0.0, ge=0.0)
-    reps_performed: int = Field(ge=0)
-    rpe: Optional[int] = Field(default=None, ge=1, le=10, description="Rate of Perceived Exertion (1-10)")
-    is_completed: bool = True
+    reps_performed: int = Field(default=0, ge=0, alias="reps")
+    rpe: Optional[float] = Field(default=None, ge=1.0, le=10.0, description="Rate of Perceived Exertion (1-10)")
+    is_completed: bool = Field(default=True, alias="completed")
+
+    @model_validator(mode="before")
+    @classmethod
+    def reconcile_set_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "reps" in data and "reps_performed" not in data:
+                data["reps_performed"] = data["reps"]
+            elif "reps_performed" in data and "reps" not in data:
+                data["reps"] = data["reps_performed"]
+            if "completed" in data and "is_completed" not in data:
+                data["is_completed"] = data["completed"]
+            elif "is_completed" in data and "completed" not in data:
+                data["completed"] = data["is_completed"]
+        return data
 
 
 class CompletedExercise(BaseModel):
@@ -130,23 +145,59 @@ class CompletedExercise(BaseModel):
 
     exercise_id: str
     exercise_name: str
-    sets: List[CompletedSet]
+    sets: List[CompletedSet] = Field(default_factory=list)
     skipped: bool = False
     notes: Optional[str] = None
 
 
 class CompletedSession(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
-    id: str
+    id: str = Field(default_factory=lambda: f"sess_{uuid.uuid4().hex[:10]}")
     user_id: str
     plan_id: Optional[str] = None
     session_date: date = Field(default_factory=date.today)
-    duration_minutes: int = Field(ge=1, le=300)
-    perceived_effort_rpe: Optional[int] = Field(default=None, ge=1, le=10)
-    exercises: List[CompletedExercise]
+    session_name: Optional[str] = "Completed Workout"
+    duration_minutes: int = Field(default=45, ge=1, le=300)
+    perceived_effort_rpe: Optional[float] = Field(default=None, ge=1.0, le=10.0)
+    exercises: List[CompletedExercise] = Field(default_factory=list)
     feedback: Optional[str] = None
+    total_volume_kg: float = Field(default=0.0)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    @model_validator(mode="before")
+    @classmethod
+    def reconcile_session_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            raw_date = data.get("session_date") or data.get("started_at")
+            if raw_date:
+                if isinstance(raw_date, str) and "T" in raw_date:
+                    clean_d = raw_date.split("T")[0]
+                elif isinstance(raw_date, datetime):
+                    clean_d = raw_date.date()
+                else:
+                    clean_d = raw_date
+                data["session_date"] = clean_d
+                data["started_at"] = clean_d
+            if "rpe_session" in data and "perceived_effort_rpe" not in data:
+                data["perceived_effort_rpe"] = data["rpe_session"]
+            if "feedback_notes" in data and "feedback" not in data:
+                data["feedback"] = data["feedback_notes"]
+            if not data.get("id"):
+                data["id"] = f"sess_{uuid.uuid4().hex[:10]}"
+        return data
+
+    @model_validator(mode="after")
+    def compute_volume_if_needed(self) -> "CompletedSession":
+        if not self.total_volume_kg:
+            vol = sum(
+                (s.weight_kg * s.reps_performed)
+                for ex in self.exercises
+                for s in ex.sets
+                if s.is_completed
+            )
+            self.total_volume_kg = round(vol, 2)
+        return self
 
 
 class ExerciseProgressRecord(BaseModel):
@@ -161,12 +212,33 @@ class ExerciseProgressRecord(BaseModel):
 
 
 class ProgressMetrics(BaseModel):
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
     user_id: str
     total_completed_sessions: int
+    total_sessions_completed: Optional[int] = None
     weekly_adherence_rate: float = Field(description="0.0 to 1.0 (or >1.0 if exceeding)")
+    adherence_rate_14d: Optional[float] = None
     total_volume_kg: float
     exercise_records: Dict[str, ExerciseProgressRecord] = Field(default_factory=dict)
+    exercise_trends: Optional[Dict[str, ExerciseProgressRecord]] = None
     recommended_adjustments: List[str] = Field(default_factory=list)
+    progression_recommendations: Optional[List[Dict[str, Any]]] = None
+
+    @model_validator(mode="after")
+    def sync_aliases(self) -> "ProgressMetrics":
+        if self.total_sessions_completed is None:
+            self.total_sessions_completed = self.total_completed_sessions
+        if self.adherence_rate_14d is None:
+            self.adherence_rate_14d = round(self.weekly_adherence_rate * 100, 1)
+        if self.exercise_trends is None:
+            self.exercise_trends = self.exercise_records
+        if self.progression_recommendations is None:
+            self.progression_recommendations = [
+                {"exercise_name": "General", "recommendation": rec, "rationale": "Telemetry-driven"}
+                for rec in self.recommended_adjustments
+            ]
+        return self
 
 
 class ChatTurnRequest(BaseModel):

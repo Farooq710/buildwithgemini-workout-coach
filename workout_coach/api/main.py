@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 import os
+import logging
 
 from workout_coach.core.models import (
     FitnessProfile,
@@ -48,6 +49,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+logger = logging.getLogger("workout_coach.api.main")
+
 # Initialize Storage & Repository (Cloud Firestore default, SQLite fallback)
 repo = get_repository()
 
@@ -55,8 +58,10 @@ repo = get_repository()
 use_gemini = os.environ.get("USE_VERTEX_GEMINI", "false").lower() in ["true", "1", "yes"]
 if use_gemini:
     adapter = GeminiVertexModelAdapter()
+    logger.info("⚡ Active model adapter: GeminiVertexModelAdapter (Vertex AI Gemini 2.5 Flash)")
 else:
     adapter = MockWorkoutCoachModelAdapter()
+    logger.info("ℹ️ Active model adapter: MockWorkoutCoachModelAdapter (Deterministic/Offline)")
 
 coach = WorkoutCoach(repo=repo, model_adapter=adapter)
 
@@ -92,9 +97,15 @@ def create_or_update_profile(profile: FitnessProfile) -> FitnessProfile:
 
 
 @app.get("/api/v1/profiles", response_model=List[FitnessProfile])
-def list_profiles() -> List[FitnessProfile]:
+def list_profiles(include_internal: bool = True) -> List[FitnessProfile]:
     if hasattr(repo, "list_profiles"):
-        return repo.list_profiles()
+        all_profs = repo.list_profiles()
+        if not include_internal:
+            return [
+                p for p in all_profs 
+                if not (p.user_id.lower().startswith("test_") or p.user_id.lower().startswith("api_test_") or p.user_id.lower().startswith("tmp_") or p.user_id.lower().startswith("cloud_user_"))
+            ]
+        return all_profs
     return []
 
 

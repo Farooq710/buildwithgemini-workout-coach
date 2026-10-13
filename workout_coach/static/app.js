@@ -123,7 +123,11 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const res = await fetch("/api/v1/profiles");
       if (res.ok) {
-        athletesList = await res.json();
+        const raw = await res.json();
+        athletesList = (raw || []).filter(ath => {
+          const id = (ath.user_id || "").toLowerCase();
+          return !id.startsWith("test_") && !id.startsWith("api_test_") && !id.startsWith("cloud_user_") && !id.startsWith("tmp_");
+        });
       }
     } catch (e) {
       console.warn("Could not fetch athletes list:", e);
@@ -345,11 +349,13 @@ document.addEventListener("DOMContentLoaded", () => {
           `;
         });
 
+        const dayTitle = sess.day_name || (sess.session_name ? `Day ${sess.day_number}: ${sess.session_name}` : `Day ${sess.day_number || 1}`);
+
         card.innerHTML = `
           <div class="plan-day-header">
             <div>
-              <div class="plan-day-title">Day ${sess.day_number}: ${sess.session_name}</div>
-              <div class="plan-day-focus">Target Focus: ${sess.focus} • ${sess.exercises.length} Movements</div>
+              <div class="plan-day-title">${dayTitle}</div>
+              <div class="plan-day-focus">Target Focus: ${sess.focus || 'Full Body'} • ${sess.exercises.length} Movements</div>
             </div>
           </div>
           <table class="plan-exercise-table">
@@ -462,19 +468,19 @@ document.addEventListener("DOMContentLoaded", () => {
             <td><strong>1</strong></td>
             <td><input type="number" step="0.5" class="set-weight" value="20.0" required></td>
             <td><input type="number" class="set-reps" value="10" required></td>
-            <td><input type="number" class="set-rpe" value="7" min="1" max="10"></td>
+            <td><input type="number" step="0.5" class="set-rpe" value="7.0" min="1" max="10"></td>
           </tr>
           <tr>
             <td><strong>2</strong></td>
             <td><input type="number" step="0.5" class="set-weight" value="22.5" required></td>
             <td><input type="number" class="set-reps" value="10" required></td>
-            <td><input type="number" class="set-rpe" value="8" min="1" max="10"></td>
+            <td><input type="number" step="0.5" class="set-rpe" value="8.0" min="1" max="10"></td>
           </tr>
           <tr>
             <td><strong>3</strong></td>
             <td><input type="number" step="0.5" class="set-weight" value="22.5" required></td>
             <td><input type="number" class="set-reps" value="8" required></td>
-            <td><input type="number" class="set-rpe" value="8.5" min="1" max="10"></td>
+            <td><input type="number" step="0.5" class="set-rpe" value="8.5" min="1" max="10"></td>
           </tr>
         </tbody>
       </table>
@@ -515,25 +521,38 @@ document.addEventListener("DOMContentLoaded", () => {
           set_number: sIdx + 1,
           weight_kg: weight,
           reps: reps,
+          reps_performed: reps,
           rpe: rpe,
-          completed: true
+          completed: true,
+          is_completed: true
         });
       });
 
       performedExercises.push({
         exercise_id: exId,
         exercise_name: exName,
-        sets: sets
+        sets: sets,
+        skipped: false
       });
     });
 
+    const dateVal = document.getElementById("logDate").value || new Date().toISOString().split("T")[0];
+    const durationVal = parseInt(document.getElementById("logDuration").value) || 45;
+    const rpeVal = parseFloat(rpeSlider.value) || 7.0;
+    const feedbackVal = document.getElementById("logFeedback").value || "";
+    const generatedId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
     const payload = {
+      id: generatedId,
       user_id: currentUserId,
       session_name: "Completed Workout",
-      started_at: new Date(document.getElementById("logDate").value).toISOString(),
-      duration_minutes: parseInt(document.getElementById("logDuration").value) || 45,
-      rpe_session: parseFloat(rpeSlider.value) || 7.0,
-      feedback_notes: document.getElementById("logFeedback").value,
+      session_date: dateVal,
+      started_at: dateVal,
+      duration_minutes: durationVal,
+      perceived_effort_rpe: rpeVal,
+      rpe_session: rpeVal,
+      feedback: feedbackVal,
+      feedback_notes: feedbackVal,
       exercises: performedExercises
     };
 
@@ -544,18 +563,38 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error("Failed to record workout session");
+      if (!res.ok) {
+        let errDetail = "Failed to record workout session";
+        try {
+          const errData = await res.json();
+          if (errData.detail) {
+            errDetail = typeof errData.detail === "string"
+              ? errData.detail
+              : Array.isArray(errData.detail)
+                ? errData.detail.map(d => `${(d.loc || []).join(".")}: ${d.msg}`).join("; ")
+                : JSON.stringify(errData.detail);
+          }
+        } catch (_) {}
+        throw new Error(errDetail);
+      }
 
       const session = await res.json();
-      showToast(`💾 Session recorded to Cloud Firestore! Volume: ${session.total_volume_kg} kg`, "success");
-      statusMsg.className = "inline-status-msg success";
-      statusMsg.textContent = `✅ Saved session (${session.total_volume_kg} kg volume)`;
+      const volText = (session.total_volume_kg !== undefined && session.total_volume_kg !== null)
+        ? `${session.total_volume_kg} kg`
+        : "recorded";
 
-      // Switch to progress tab after a brief pause
+      showToast(`💾 Session recorded to Cloud Firestore! Volume: ${volText}`, "success");
+      statusMsg.className = "inline-status-msg success";
+      statusMsg.textContent = `✅ Saved session (${volText} volume)`;
+
+      // Refresh progress & active plans, then switch tabs
+      loadProgress();
+      loadActivePlan();
+
       setTimeout(() => {
         switchTab("tab-progress");
         statusMsg.textContent = "";
-      }, 1200);
+      }, 1000);
 
     } catch (err) {
       statusMsg.className = "inline-status-msg error";
@@ -576,17 +615,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const data = await res.json();
 
-      // Update KPI
-      document.getElementById("statSessions").textContent = data.total_sessions_completed;
-      document.getElementById("statAdherence").textContent = `${data.adherence_rate_14d}%`;
-      document.getElementById("statVolume").textContent = `${data.total_volume_kg.toLocaleString()} kg`;
+      // Update KPI with safe fallbacks
+      const totalSessions = data.total_completed_sessions ?? data.total_sessions_completed ?? 0;
+      let adherence = 0;
+      if (data.adherence_rate_14d !== undefined && data.adherence_rate_14d !== null) {
+        adherence = Math.round(data.adherence_rate_14d);
+      } else if (data.weekly_adherence_rate !== undefined && data.weekly_adherence_rate !== null) {
+        adherence = Math.round(data.weekly_adherence_rate * 100);
+      }
+      const totalVol = data.total_volume_kg ?? 0;
+
+      document.getElementById("statSessions").textContent = totalSessions;
+      document.getElementById("statAdherence").textContent = `${adherence}%`;
+      document.getElementById("statVolume").textContent = `${Number(totalVol).toLocaleString()} kg`;
 
       // Overload Guidance
       const adjList = document.getElementById("adjustmentsList");
-      if (data.progression_recommendations && data.progression_recommendations.length > 0) {
+      const recs = data.progression_recommendations || data.recommended_adjustments || [];
+      if (recs && recs.length > 0) {
         let itemsHtml = "<ul>";
-        data.progression_recommendations.forEach(r => {
-          itemsHtml += `<li><strong>${r.exercise_name}:</strong> ${r.recommendation} <em>(${r.rationale})</em></li>`;
+        recs.forEach(r => {
+          if (typeof r === "string") {
+            itemsHtml += `<li>${r}</li>`;
+          } else {
+            itemsHtml += `<li><strong>${r.exercise_name || 'Exercise'}:</strong> ${r.recommendation || ''} <em>(${r.rationale || 'Telemetry-driven'})</em></li>`;
+          }
         });
         itemsHtml += "</ul>";
         adjList.innerHTML = itemsHtml;
@@ -597,7 +650,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Trends Table
       const trendsBody = document.getElementById("exerciseTrendsBody");
       trendsBody.innerHTML = "";
-      const trends = data.exercise_trends || {};
+      const trends = data.exercise_records || data.exercise_trends || {};
       const exKeys = Object.keys(trends);
 
       if (exKeys.length === 0) {
@@ -608,18 +661,22 @@ document.addEventListener("DOMContentLoaded", () => {
       exKeys.forEach(name => {
         const t = trends[name];
         const row = document.createElement("tr");
+        const maxW = t.max_weight_kg ?? 0;
+        const e1rm = t.estimated_1rm_kg ?? 0;
+        const exVol = t.total_volume_kg ?? 0;
+        const displayName = t.exercise_name || name;
         row.innerHTML = `
-          <td><strong>${name}</strong></td>
-          <td>${t.sessions_logged}</td>
-          <td><span class="metric-highlight">${t.max_weight_kg} kg</span></td>
-          <td><span class="metric-highlight">${t.estimated_1rm_kg} kg</span></td>
-          <td>${t.total_volume_kg.toLocaleString()} kg</td>
+          <td><strong>${displayName}</strong></td>
+          <td>${t.sessions_logged ?? 1}</td>
+          <td><span class="metric-highlight">${maxW} kg</span></td>
+          <td><span class="metric-highlight">${e1rm} kg</span></td>
+          <td>${Number(exVol).toLocaleString()} kg</td>
           <td>
             <span class="pill pill-guard">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="icon-xs">
                 <polyline points="18 15 12 9 6 15"></polyline>
               </svg>
-              ${t.trend}
+              ${t.trend || 'stable'}
             </span>
           </td>
         `;
@@ -726,7 +783,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnScoutFacilities = document.getElementById("btnScoutFacilities");
   const mapsVenuesContainer = document.getElementById("mapsVenuesContainer");
 
-  function renderVenueCards(venues, targetContainer) {
+  function renderVenueCards(venues, targetContainer, source) {
     if (!targetContainer) return;
     targetContainer.innerHTML = "";
 
@@ -739,23 +796,32 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    const isLive = source === "google_places_api_new";
+    const sourceBadge = isLive
+      ? `<span class="pill" style="background: rgba(16, 185, 129, 0.15); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px;">Verified Live Google Places</span>`
+      : `<span class="pill" style="background: rgba(245, 158, 11, 0.15); color: #F59E0B; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px;">⚠️ Sample Demonstration Data (Simulated Fallback)</span>`;
+
     venues.forEach((v, idx) => {
       const card = document.createElement("div");
       card.className = "venue-card";
 
-      const stars = "★".repeat(Math.round(v.rating || 4.5)) + "☆".repeat(5 - Math.round(v.rating || 4.5));
+      const stars = "★".repeat(Math.round(v.rating || 4.5)) + "☆".repeat(Math.max(0, 5 - Math.round(v.rating || 4.5)));
       const iframeId = `map_iframe_${idx}_${Date.now()}`;
+      const revCount = v.reviews || v.user_ratings_total || 45;
 
       card.innerHTML = `
         <div>
-          <div class="venue-card-header">
-            <h3 class="venue-title">${v.name}</h3>
-            <span class="venue-category-badge">${v.category || "Fitness"}</span>
+          <div class="venue-card-header" style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem; flex-wrap:wrap;">
+            <h3 class="venue-title" style="margin:0;">${v.name}</h3>
+            <div style="display:flex; gap:0.35rem; align-items:center; flex-wrap:wrap;">
+              <span class="venue-category-badge">${v.category || "Fitness"}</span>
+              ${sourceBadge}
+            </div>
           </div>
           <div class="venue-rating-row" style="margin-top: 0.35rem;">
             <span>${stars}</span>
             <strong>${v.rating || "4.8"}</strong>
-            <span class="venue-rating-count">(${v.user_ratings_total || 120}+ reviews)</span>
+            <span class="venue-rating-count">(${revCount}+ reviews)</span>
           </div>
           <p class="venue-address" style="margin-top: 0.5rem;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-xs" style="flex-shrink: 0; margin-top: 2px;">
@@ -826,7 +892,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch(`/api/v1/maps/facilities?location=${encodeURIComponent(loc)}&facility_type=${encodeURIComponent(fType)}`);
       const data = await res.json();
       if (data && data.venues) {
-        renderVenueCards(data.venues, mapsVenuesContainer);
+        renderVenueCards(data.venues, mapsVenuesContainer, data.source);
       }
     } catch (err) {
       if (mapsVenuesContainer) {
@@ -1001,11 +1067,19 @@ document.addEventListener("DOMContentLoaded", () => {
     if (mapsData && Array.isArray(mapsData.venues) && mapsData.venues.length > 0) {
       const mapsWrapper = document.createElement("div");
       mapsWrapper.style.marginTop = "0.75rem";
+      const isLive = mapsData.source === "google_places_api_new";
+      const badge = isLive
+        ? `<span style="font-size:0.65rem; background:rgba(16,185,129,0.15); color:#10B981; padding:1px 6px; border-radius:9999px; border:1px solid rgba(16,185,129,0.3);">Google Places</span>`
+        : `<span style="font-size:0.65rem; background:rgba(245,158,11,0.15); color:#F59E0B; padding:1px 6px; border-radius:9999px; border:1px solid rgba(245,158,11,0.3);">Demonstration Data</span>`;
+
       mapsData.venues.slice(0, 3).forEach(v => {
         const miniCard = document.createElement("div");
         miniCard.className = "chat-maps-card";
         miniCard.innerHTML = `
-          <div class="chat-maps-card-title">📍 ${v.name}</div>
+          <div class="chat-maps-card-title" style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
+            <span>📍 ${v.name}</span>
+            ${badge}
+          </div>
           <div style="font-size: 0.75rem; color: #FBBF24;">★ ${v.rating} <span style="color:var(--text-muted);">(${v.user_ratings_total || 50}+)</span> • <span style="color:var(--accent-cyan);">${v.category || 'Fitness'}</span></div>
           <div style="font-size: 0.75rem; color: var(--text-secondary);">${v.formatted_address || v.address}</div>
           <div class="chat-maps-links">

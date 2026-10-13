@@ -1,8 +1,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Direct client access is denied; all access is mediated by the authenticated
+    // FastAPI backend using Google Cloud IAM Service Account / Admin SDK.
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }
